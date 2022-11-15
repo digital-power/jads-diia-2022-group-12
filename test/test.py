@@ -103,6 +103,17 @@ def github_webscrape_v4():
     end_v4 = time.time()
     print("V4", end_v4-start_v4)
 
+def get_longlist():
+    start_v4 = time.time()
+    threads = []
+    number = 5
+    start = 0
+    stop = 5
+    pause = 2
+    query = "site:github.com software AND (developer OR engineer) AND language:python AND ~cv -job -jobs -hire -hiring -topics"
 
-github_webscrape_v4()
+    results = search(query, tld="com", num=number, start=start, stop=stop, pause=pause)
 
+    print([find_location(link) for link in results])
+
+get_longlist()

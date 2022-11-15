@@ -1,0 +1,29 @@
+body {
+    background-color: #011833;
+    color: #7FDBFF;
+    font-family: Arial;
+}
+
+h1 {
+    text-align: center;
+}
+
+.query-container {
+    margin: 5px;
+    padding: 10px;
+    background-color: gray;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    flex-direction: column;
+}
+
+.dropdown-container {
+    padding: 5px;
+}
+
+.list-container {
+    padding: 5px;
+}
+

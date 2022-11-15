@@ -14,12 +14,16 @@ app = dash.Dash(
     __name__,
 )
 resumes = []
-professions = ['software engineer', 'software developer']
-location = ['amsterdam', 'london']
-language = ['python', 'css', 'ruby']
+professions = {'Software Engineer': 'software engineer',
+               'Software Developer': 'software developer'}
+locations = {'Amsterdam': 'amsterdam',
+             'London': 'london'}
+languages = {'Python': 'python',
+             'CSS': 'css',
+             'Ruby': 'ruby'}
 colors = {"background": "#011833", "text": "#7FDBFF"}
 
-app.layout = html.Div(
+app.layout = html.Div(className='body', children=
     [
         html.H1(
             "Skills lookup",
@@ -28,13 +32,13 @@ app.layout = html.Div(
             [
 
                 # Dropdown to filter profession
-                html.Div(
+                html.Div(className='dropdown-container', children=
                     [
                         html.Label("Profession"),
                         dcc.Dropdown(
                             id="profession-dropdown",
-                            options=[{"label": y, "value": y}
-                                     for y in professions
+                            options=[{"label": k, "value": v}
+                                     for k, v in professions.items()
                                      ],
                             className="dropdown"
                         ),
@@ -42,26 +46,26 @@ app.layout = html.Div(
                 ),
                 # Dropdown to filter countries with average schooling years.
 
-                html.Div(
+                html.Div(className='dropdown-container', children=
                     [
                         html.Label("Location"),
                         dcc.Dropdown(
                             id="location-dropdown",
-                            options=[{"label": s, "value": s}
-                                     for s in location
+                            options=[{"label": k, "value": v}
+                                     for k, v in locations.items()
                                      ],
                             className="dropdown"
                         ),
                     ],
                 ),
 
-                html.Div(
+                html.Div(className='dropdown-container', children=
                     [
                         html.Label("Language"),
                         dcc.Dropdown(
                             id="language-dropdown",
-                            options=[{"label": p, "value": p}
-                                     for p in language
+                            options=[{"label": k, "value": v}
+                                     for k, v in languages.items()
                                      ],
                             className="dropdown"
                         ),
@@ -72,9 +76,33 @@ app.layout = html.Div(
             className="row",
         ),
         html.Br(),
-        html.Ul(id='my-list')
+        html.Div(id='query-container', className='query-container'),
+        html.Div(className='list-container', children=[html.Ul(id='my-list')])
     ],
 )
+
+
+def build_query(selected_profession, selected_location, selected_language):
+    query = "site:github.com"
+    if selected_profession:
+        query += " " + str(selected_profession)
+    if selected_location:
+        query += " AND " + str(selected_location)
+    if selected_language:
+        query += " AND language:" + str(selected_language)
+    query += " AND ~resume -job -jobs -hire -hiring"
+    return query
+
+
+@app.callback(
+    Output('query-container', 'children'),
+    Input("profession-dropdown", "value"),
+    Input("location-dropdown", "value"),
+    Input("language-dropdown", "value"), prevent_initial_call=True
+)
+def update_query(selected_profession, selected_location, selected_language):
+    query = build_query(selected_profession, selected_location, selected_language)
+    return query
 
 
 @app.callback(
@@ -97,11 +125,6 @@ def update_search(selected_profession, selected_location, selected_language):
     if selected_language:
         query += " AND language:" + str(selected_language)
     query += " AND ~resume -job -jobs -hire -hiring"
-    print(query)
-    # query = "site:github.com " + str(selected_profession) + \
-    #         " AND " + str(selected_location) + \
-    #         " AND language:" + str(selected_language) + \
-    #         " AND ~resume -job -jobs -hire -hiring "
     resumes = []
     for j in search(query, tld="co.in", num=5, stop=5, pause=2):
         link_parts = j.split('/')
