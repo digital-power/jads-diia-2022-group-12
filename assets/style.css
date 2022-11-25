@@ -24,6 +24,10 @@ h1 {
 }
 
 .list-container {
+    height: 600px;
     padding: 5px;
+    margin: 10px;
+    overflow: scroll;
+
 }
 

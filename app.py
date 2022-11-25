@@ -8,16 +8,17 @@ import dash_html_components as html
 import plotly.express as px
 import pandas as pd
 
+import requests
+import json
+
 from dash import Dash, dcc, html, Input, Output
 
 app = dash.Dash(
     __name__,
 )
 resumes = []
-professions = {'Software Engineer': 'software engineer',
-               'Software Developer': 'software developer'}
 locations = {'Amsterdam': 'amsterdam',
-             'London': 'london'}
+             'The Hague': 'the hague'}
 languages = {'Python': 'python',
              'CSS': 'css',
              'Ruby': 'ruby'}
@@ -30,27 +31,12 @@ app.layout = html.Div(className='body', children=
         ),
         html.Div(
             [
-
-                # Dropdown to filter profession
-                html.Div(className='dropdown-container', children=
-                    [
-                        html.Label("Profession"),
-                        dcc.Dropdown(
-                            id="profession-dropdown",
-                            options=[{"label": k, "value": v}
-                                     for k, v in professions.items()
-                                     ],
-                            className="dropdown"
-                        ),
-                    ]
-                ),
-                # Dropdown to filter countries with average schooling years.
-
                 html.Div(className='dropdown-container', children=
                     [
                         html.Label("Location"),
                         dcc.Dropdown(
                             id="location-dropdown",
+                            multi=True,
                             options=[{"label": k, "value": v}
                                      for k, v in locations.items()
                                      ],
@@ -64,6 +50,7 @@ app.layout = html.Div(className='body', children=
                         html.Label("Language"),
                         dcc.Dropdown(
                             id="language-dropdown",
+                            multi=True,
                             options=[{"label": k, "value": v}
                                      for k, v in languages.items()
                                      ],
@@ -82,59 +69,65 @@ app.layout = html.Div(className='body', children=
 )
 
 
-def build_query(selected_profession, selected_location, selected_language):
-    query = "site:github.com"
-    if selected_profession:
-        query += " " + str(selected_profession)
-    if selected_location:
-        query += " AND " + str(selected_location)
-    if selected_language:
-        query += " AND language:" + str(selected_language)
-    query += " AND ~resume -job -jobs -hire -hiring"
-    return query
-
-
 @app.callback(
     Output('query-container', 'children'),
-    Input("profession-dropdown", "value"),
     Input("location-dropdown", "value"),
     Input("language-dropdown", "value"), prevent_initial_call=True
 )
-def update_query(selected_profession, selected_location, selected_language):
-    query = build_query(selected_profession, selected_location, selected_language)
+def update_query(selected_location, selected_language):
+    query = query_builder(selected_location, selected_language)
     return query
+
+
+def query_builder(location_list, language_list):
+    query = 'https://api.github.com/search/users?q='
+    if location_list:
+        location_query = '+'.join(['location:"{0}"'.format(location) for location in location_list])
+        query += location_query
+    if language_list:
+        language_query = '+'.join(['language:"{0}"'.format(language) for language in language_list])
+        query += language_query
+    return query
+
+
+def get_user_information(profile_name):
+    query = 'https://api.github.com/users/{0}'.format(profile_name)
+    response = requests.get(query)
+    response_dict = json.loads(response.text)
+    return response_dict
+
+
+def get_user_information_first_ten_results(search_results):
+    information_dict = dict()
+    for i in range(10):
+        search_result = search_results[i]
+        user_information_dict = dict()
+
+        user_information = get_user_information(search_result['login'])
+        user_information_dict['name'] = user_information['name']
+        user_information_dict['location'] = user_information['location']
+        information_dict[search_result['login']] = user_information_dict
+    print(information_dict)
 
 
 @app.callback(
     Output('my-list', 'children'),
-    Input("profession-dropdown", "value"),
     Input("location-dropdown", "value"),
     Input("language-dropdown", "value"), prevent_initial_call=True
 )
-def update_search(selected_profession, selected_location, selected_language):
-    try:
-        from googlesearch import search
-    except ImportError:
-        print("No module named 'google' found")
+def update_search(selected_location, selected_language):
+    query = query_builder(selected_location, selected_language)
+    response = requests.get(query)
+    response_dict = json.loads(response.text)
+    results = response_dict['items']
+    info_list = [html.Li([dcc.Markdown(result['login']), html.Ul(html.Li(dcc.Markdown(result['html_url'])))]) for result in results]
+    get_user_information_first_ten_results(results)
+    return info_list
 
-    query = "site:github.com"
-    if selected_profession:
-        query += " " + str(selected_profession)
-    if selected_location:
-        query += " AND " + str(selected_location)
-    if selected_language:
-        query += " AND language:" + str(selected_language)
-    query += " AND ~resume -job -jobs -hire -hiring"
-    resumes = []
-    for j in search(query, tld="co.in", num=5, stop=5, pause=2):
-        link_parts = j.split('/')
-        profile_link = '/'.join(link_parts[:4])
-        resume_link = j
-        resumes.append(html.Li(
-            [dcc.Markdown(profile_link), html.Ul(
-                html.Li(
-                    dcc.Markdown('[Resume]({0})'.format(resume_link))))]))
-    return resumes
+    # resumes.append(html.Li(
+    #     [dcc.Markdown(profile_link), html.Ul(
+    #         html.Li(
+    #                 dcc.Markdown('[Resume]({0})'.format(resume_link))))]))
 
 
 if __name__ == "__main__":
