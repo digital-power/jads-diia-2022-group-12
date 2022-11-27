@@ -7,10 +7,10 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.express as px
 import pandas as pd
-
 import requests
 import json
 
+from googlesearch import search
 from dash import Dash, dcc, html, Input, Output
 
 app = dash.Dash(
@@ -94,21 +94,13 @@ def get_user_information(profile_name):
     query = 'https://api.github.com/users/{0}'.format(profile_name)
     response = requests.get(query)
     response_dict = json.loads(response.text)
+    response_dict['linkedin'] = get_linkedin_profile_from_name(response_dict['name'])
     return response_dict
 
-
-def get_user_information_first_ten_results(search_results):
-    information_dict = dict()
-    for i in range(10):
-        search_result = search_results[i]
-        user_information_dict = dict()
-
-        user_information = get_user_information(search_result['login'])
-        user_information_dict['name'] = user_information['name']
-        user_information_dict['location'] = user_information['location']
-        information_dict[search_result['login']] = user_information_dict
-    print(information_dict)
-
+def get_linkedin_profile_from_name(full_name):
+    query = '"{0}" site:linkedin.com/in OR site:linkedin.com/pub -intitle:profiles -inurl:"/dir"'.format(full_name)
+    for j in search(query, tld="co.in", num=1, stop=1, pause=2):
+        return j
 
 @app.callback(
     Output('my-list', 'children'),
@@ -116,18 +108,19 @@ def get_user_information_first_ten_results(search_results):
     Input("language-dropdown", "value"), prevent_initial_call=True
 )
 def update_search(selected_location, selected_language):
+    result_per_search = 3
     query = query_builder(selected_location, selected_language)
     response = requests.get(query)
     response_dict = json.loads(response.text)
-    results = response_dict['items']
-    info_list = [html.Li([dcc.Markdown(result['login']), html.Ul(html.Li(dcc.Markdown(result['html_url'])))]) for result in results]
-    get_user_information_first_ten_results(results)
+    results = response_dict['items'][0:result_per_search]
+    usernames = [result['login'] for result in results]
+    user_infos = [get_user_information(username) for username in usernames]
+    info_list = [html.Li([dcc.Markdown(user_info['login']), html.Ul([html.Li(dcc.Markdown(user_info['name'])),
+                                                                     html.Li(dcc.Markdown(user_info['html_url'])),
+                                                                     html.Li(dcc.Markdown(user_info['linkedin']))])]) for user_info in user_infos]
+
     return info_list
 
-    # resumes.append(html.Li(
-    #     [dcc.Markdown(profile_link), html.Ul(
-    #         html.Li(
-    #                 dcc.Markdown('[Resume]({0})'.format(resume_link))))]))
 
 
 if __name__ == "__main__":
