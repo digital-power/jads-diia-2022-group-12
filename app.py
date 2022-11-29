@@ -10,6 +10,7 @@ import pandas as pd
 import requests
 import json
 
+from src.Profile import Profile
 from googlesearch import search
 from dash import Dash, dcc, html, Input, Output
 
@@ -17,6 +18,8 @@ app = dash.Dash(
     __name__,
 )
 resumes = []
+functions = {'Software Developer': 'software developer',
+             'Software Engineer': 'software engineer'}
 locations = {'Amsterdam': 'amsterdam',
              'The Hague': 'the hague'}
 languages = {'Python': 'python',
@@ -31,6 +34,20 @@ app.layout = html.Div(className='body', children=
         ),
         html.Div(
             [
+                html.Div(className='dropdown-container', children=
+                [
+                    html.Label("Function"),
+                    dcc.Dropdown(
+                        id="function-dropdown",
+                        multi=True,
+                        options=[{"label": k, "value": v}
+                                 for k, v in functions.items()
+                                 ],
+                        className="dropdown"
+                    ),
+                ],
+                         ),
+
                 html.Div(className='dropdown-container', children=
                     [
                         html.Label("Location"),
@@ -78,7 +95,6 @@ def update_query(selected_location, selected_language):
     query = query_builder(selected_location, selected_language)
     return query
 
-
 def query_builder(location_list, language_list):
     query = 'https://api.github.com/search/users?q='
     if location_list:
@@ -90,17 +106,10 @@ def query_builder(location_list, language_list):
     return query
 
 
-def get_user_information(profile_name):
-    query = 'https://api.github.com/users/{0}'.format(profile_name)
-    response = requests.get(query)
-    response_dict = json.loads(response.text)
-    response_dict['linkedin'] = get_linkedin_profile_from_name(response_dict['name'])
-    return response_dict
-
 def get_linkedin_profile_from_name(full_name):
     query = '"{0}" site:linkedin.com/in OR site:linkedin.com/pub -intitle:profiles -inurl:"/dir"'.format(full_name)
-    for j in search(query, tld="co.in", num=1, stop=1, pause=2):
-        return j
+    for j in search(query, tld="co.in", num=1, stop=1, pause=1):
+        return
 
 @app.callback(
     Output('my-list', 'children'),
@@ -108,19 +117,19 @@ def get_linkedin_profile_from_name(full_name):
     Input("language-dropdown", "value"), prevent_initial_call=True
 )
 def update_search(selected_location, selected_language):
-    result_per_search = 3
+    max_results = 3
     query = query_builder(selected_location, selected_language)
     response = requests.get(query)
     response_dict = json.loads(response.text)
-    results = response_dict['items'][0:result_per_search]
+    results = response_dict['items'][0:max_results]
     usernames = [result['login'] for result in results]
-    user_infos = [get_user_information(username) for username in usernames]
-    info_list = [html.Li([dcc.Markdown(user_info['login']), html.Ul([html.Li(dcc.Markdown(user_info['name'])),
-                                                                     html.Li(dcc.Markdown(user_info['html_url'])),
-                                                                     html.Li(dcc.Markdown(user_info['linkedin']))])]) for user_info in user_infos]
-
+    profiles = [Profile(username) for username in usernames]
+    info_list = [html.Li([dcc.Markdown(profile.github_profile_name),
+                          html.Ul([html.Li(dcc.Markdown("Name: {0}".format(profile.full_name))),
+                                   html.Li(dcc.Markdown("GitHub: {0}".format(profile.github_url))),
+                                   html.Li(dcc.Markdown("Location: {0}".format(profile.location))),
+                                   html.Li(dcc.Markdown("LinkedIn: {0}".format(profile.linkedin_url)))])]) for profile in profiles]
     return info_list
-
 
 
 if __name__ == "__main__":
