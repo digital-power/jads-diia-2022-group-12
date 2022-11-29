@@ -106,11 +106,6 @@ def query_builder(location_list, language_list):
     return query
 
 
-def get_linkedin_profile_from_name(full_name):
-    query = '"{0}" site:linkedin.com/in OR site:linkedin.com/pub -intitle:profiles -inurl:"/dir"'.format(full_name)
-    for j in search(query, tld="co.in", num=1, stop=1, pause=1):
-        return
-
 @app.callback(
     Output('my-list', 'children'),
     Input("location-dropdown", "value"),
@@ -124,6 +119,8 @@ def update_search(selected_location, selected_language):
     results = response_dict['items'][0:max_results]
     usernames = [result['login'] for result in results]
     profiles = [Profile(username) for username in usernames]
+
+
     info_list = [html.Li([dcc.Markdown(profile.github_profile_name),
                           html.Ul([html.Li(dcc.Markdown("Name: {0}".format(profile.full_name))),
                                    html.Li(dcc.Markdown("GitHub: {0}".format(profile.github_url))),

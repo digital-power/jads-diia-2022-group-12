@@ -2,7 +2,7 @@ https://github.com/OmarMohammad
 
 
 
-"software developer" site:linkedin.com/in OR site:linkedin.com/pub -intitle:profiles -inurl:"/dir"
+"Drew DeVault" site:linkedin.com/in OR site:linkedin.com/pub -intitle:profiles -inurl:"/dir"
 
 https://api.github.com/search/users?q=fullname:"Omar+Mohammad"+location:Netherlands+language:Python
 
