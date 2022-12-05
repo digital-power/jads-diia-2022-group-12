@@ -8,19 +8,22 @@ h1 {
     text-align: center;
 }
 
+.selector-container {
+    padding-left: 50px;
+    padding-right: 50px;
+}
+
 .query-container {
-    margin: 5px;
-    padding: 10px;
-    background-color: gray;
+    margin-left: 50px;
+    margin-right: 50px;
+    padding: 5px;
+    background-color: #7FDBFF;
+    color: #011833;
     border-radius: 5px;
     display: flex;
     justify-content: center;
     align-content: center;
     flex-direction: column;
-}
-
-.dropdown-container {
-    padding: 5px;
 }
 
 .list-container {
@@ -31,3 +34,31 @@ h1 {
 
 }
 
+.slider-container{
+    margin-left: 50px;
+    margin-right: 50px;
+}
+
+.profile-container {
+    height: 400px;
+}
+
+.language-plot-container {
+    position: relative;
+    float: right;
+    width: 400px;
+    height: 400px
+}
+
+.info-list {
+    margin-left: 50px;
+    margin-right: 50px;
+}
+
+.order-by-container {
+    margin-left:50px;
+    margin-right:50px;
+    width: 200px;
+    position: relative;
+    float: right;
+}
