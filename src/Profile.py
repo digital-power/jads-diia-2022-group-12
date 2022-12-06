@@ -12,8 +12,8 @@ class Profile:
 
     def __init__(self, github_profile_name):
         # Initialize properties
-        self.github_profile_name = github_profile_name
-        self.github_url = "https://github.com/{0}".format(self.github_profile_name)
+        self.github_profile_name = None
+        self.github_url = None
         self.full_name = None
         self.company = None
         self.location = None
@@ -22,11 +22,18 @@ class Profile:
         self.followers = None
         self.following = None
         self.linkedin_url = None
-        self.repos = self.scrape_repos()
-        self.language_graph = self.build_language_graph(self.repos)
+        self.repos = None
+        self.language_graph = None
+        self.stars = None
+        if github_profile_name:
+            self.github_profile_name = github_profile_name
+            self.github_url = "https://github.com/{0}".format(self.github_profile_name)
+            self.repos = self.scrape_repos()
+            self.language_graph = self.build_language_graph(self.repos)
 
-        # Fetch available properties from GitHub
-        self.get_github_information_v2()
+            # Fetch available properties from GitHub
+            self.get_github_information_v2()
+            self.get_linkedin_url()
 
     def get_github_information(self):
         # Build query based on profile name
@@ -134,6 +141,24 @@ class Profile:
             # TODO: Fix this if statement
             self.linkedin_url = result if result else "Not found."
             break
+
+    def to_dict(self):
+        return {
+            "github_profile_name": self.github_profile_name,
+            "github_url": self.github_url,
+            "full_name": self.full_name,
+            "company": self.company,
+            "location": self.location,
+            "email": self.email,
+            "link": self.link,
+            "followers": self.followers,
+            "following": self.following,
+            "linkedin_url": self.linkedin_url,
+            "repos": self.repos,
+            "language_graph": self.language_graph,
+            "stars": self.stars
+        }
+
 
 def convert_number_string(number_string):
     number = None

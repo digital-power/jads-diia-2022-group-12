@@ -14,9 +14,7 @@ from dash import callback_context as ctx
 
 from src.Profile import Profile
 from googlesearch import search
-from dash import Dash, dcc, html, Input, Output
-
-profile_list = []
+from dash import Dash, dcc, html, Input, Output, State
 
 app = dash.Dash(
     __name__,
@@ -26,12 +24,20 @@ app = dash.Dash(
 functions = {'Software Developer': 'software developer',
              'Software Engineer': 'software engineer'}
 locations = {'Amsterdam': 'amsterdam',
-             'The Hague': 'the hague'}
+             'The Hague': 'the hague',
+             'Rotterdam': 'rotterdam',
+             'Utrecht': 'utrecht',
+             'Eindhoven': 'eindhoven',
+             'Groningen': 'groningen'}
 languages = {'Python': 'python',
+             'C': 'c',
+             'C++': 'c++',
              'CSS': 'css',
              'Ruby': 'ruby'}
 order_options = {'Followers': 'followers',
                  'Stars': 'stars'}
+order_type = {'Ascending': False,
+              'Descending': True}
 colors = {"background": "#011833", "text": "#7FDBFF"}
 
 app.layout = html.Div(className='body', children=
@@ -92,6 +98,7 @@ app.layout = html.Div(className='body', children=
         #     dcc.RangeSlider(min=0, max=10000, step=50, id='fork-range-slider',
         #                     tooltip={"placement": "bottom", "always_visible": True},
         #                     marks={i: str(i) for i in range(0, 10000, 1000)})]),
+        html.Div(className='search-button-container', children=[html.Button('Search', id='search-button', n_clicks=0)]),
         html.Br(),
         html.Div(id='query-container', className='query-container'),
         html.Div(className='order-by-container', children=[html.Label("Order By"),
@@ -99,6 +106,13 @@ app.layout = html.Div(className='body', children=
                                                                         options=[{"label": k, "value": v}
                                                                                  for k, v in
                                                                                  order_options.items()
+                                                                                 ],
+                                                                        )]),
+        html.Div(className='order-type-container', children=[html.Label("Order Type"),
+                                                           dcc.Dropdown(id='order-type-dropdown',
+                                                                        options=[{"label": k, "value": v}
+                                                                                 for k, v in
+                                                                                 order_type.items()
                                                                                  ],
                                                                         )]),
         html.Div(className='list-container', children=[html.Ul(id='my-list')])
@@ -132,39 +146,41 @@ def query_builder(location_list, language_list):
 
 @app.callback(
     Output('profile-list', 'data'),
-    Input("location-dropdown", "value"),
-    Input("language-dropdown", "value"),
+    Input("search-button", "n_clicks"),
+    State("location-dropdown", "value"),
+    State("language-dropdown", "value"),
     # Input("fork-range-slider", "value"),
     prevent_initial_call=True
 )
-def get_profiles(selected_location, selected_language):
-    max_results = 15
+def get_profiles(n_clicks, selected_location, selected_language):
+    max_results = 10
     query = query_builder(selected_location, selected_language)
     response = requests.get(query)
     response_dict = json.loads(response.text)
-    results = response_dict['items'][0:max_results]
-    print(response_dict)
+    if len(response_dict['items']) > max_results:
+        results = response_dict['items'][0:max_results]
+    else:
+        results = response_dict['items']
     usernames = [result['login'] for result in results]
     profiles = [Profile(username) for username in usernames]
-
+    return [profile.to_dict() for profile in profiles]
 
 @app.callback(
     Output('my-list', 'children'),
-    Input("location-dropdown", "value"),
-    Input("language-dropdown", "value"),
-    # Input("fork-range-slider", "value"),
+    Input('profile-list', 'data'),
+    Input("order-by-dropdown", "value"),
+    Input("order-type-dropdown", "value"),
     prevent_initial_call=True
 )
-def update_search(selected_location, selected_language):
-    max_results = 5
-    if ctx.triggered_id in ["location-dropdown", "language-dropdown"]:
-        query = query_builder(selected_location, selected_language)
-        response = requests.get(query)
-        response_dict = json.loads(response.text)
-        results = response_dict['items'][0:max_results]
-        print(response_dict)
-        usernames = [result['login'] for result in results]
-        profiles = [Profile(username) for username in usernames]
+def update_list(profile_list, order_by, order_type):
+    if profile_list:
+        profiles = [profile_from_dict(profile) for profile in profile_list]
+        if ctx.triggered_id in ['order-by-dropdown', 'order-type-dropdown']:
+            if order_by and order_type is not None:
+                if order_by == 'followers':
+                    profiles = sorted(profiles, key=lambda x: x.followers, reverse=order_type)
+                elif order_by == 'stars':
+                    profiles = sorted(profiles, key=lambda x: x.stars, reverse=order_type)
         info_list = [html.Details(className='profile-collapse', children=[
                         html.Summary(profile.github_profile_name),
                             html.Div(className='profile-container', children=[
@@ -176,19 +192,26 @@ def update_search(selected_location, selected_language):
                                     html.Li(dcc.Markdown("LinkedIn: {0}".format(profile.linkedin_url))),
                                     html.Li(dcc.Markdown("Website: {0}".format(profile.link))),
                                     html.Li(dcc.Markdown("GitHub followers: {0}".format(profile.followers))),
+                                    html.Li(dcc.Markdown("Stars: {0}".format(profile.stars))),
                                     html.Li(dcc.Markdown("Total GitHub repositories: {0}".format(len(profile.repos))))])])])]) for profile in profiles]
-        profile_list = profiles
         return info_list
 
-# @app.callback(
-#     Output('my-list', 'children'),
-#     Input("order-by-dropdown", "value"),
-#     prevent_initial_call=True
-# )
-# def update_list_order(order_by):
-#     if order_by == "followers":
-#         print(profile_list)
-
+def profile_from_dict(data_dict):
+    profile = Profile(None)
+    profile.github_profile_name = data_dict['github_profile_name']
+    profile.github_url = data_dict['github_url']
+    profile.full_name= data_dict['full_name']
+    profile.company = data_dict['company']
+    profile.location = data_dict['location']
+    profile.email = data_dict['email']
+    profile.link = data_dict['link']
+    profile.followers = data_dict['followers']
+    profile.following = data_dict['following']
+    profile.linkedin_url = data_dict['linkedin_url']
+    profile.repos = data_dict['repos']
+    profile.language_graph = data_dict['language_graph']
+    profile.stars = data_dict['stars']
+    return profile
 
 
 if __name__ == "__main__":
