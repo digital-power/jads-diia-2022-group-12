@@ -132,6 +132,7 @@ def update_query(selected_location, selected_language):
 
 
 def query_builder(location_list, language_list):
+    # Build query based on location and language
     query = 'https://api.github.com/search/users?q='
     if location_list:
         location_query = '+'.join(['location:"{0}"'.format(location) for location in location_list])
@@ -150,6 +151,7 @@ def query_builder(location_list, language_list):
     prevent_initial_call=True
 )
 def get_profiles(n_clicks, selected_location, selected_language):
+    # Limit results
     max_results = 50
     query = query_builder(selected_location, selected_language)
     response = requests.get(query)
@@ -160,6 +162,7 @@ def get_profiles(n_clicks, selected_location, selected_language):
         results = response_dict['items']
     usernames = [result['login'] for result in results]
     profiles = []
+    # Google and GitHub dont like a lot of requests, find status code 429 to indicate whether we're locked out
     access_to_github = True
     access_to_google = True
     for username in usernames:
@@ -168,8 +171,10 @@ def get_profiles(n_clicks, selected_location, selected_language):
             access_to_github = cur_profile.get_github_information_v2()
         if access_to_google:
             access_to_google = cur_profile.get_linkedin_url()
+    # If we can't find full name skip adding the profile
         if cur_profile.full_name:
             profiles.append(cur_profile)
+    # Convert profiles to dict to allow saving
     return [profile.to_dict() for profile in profiles]
 
 
@@ -181,14 +186,21 @@ def get_profiles(n_clicks, selected_location, selected_language):
     prevent_initial_call=True
 )
 def update_list(profile_list, order_by, order_type):
+    # If profile list exists
     if profile_list:
+        # Convert dicts to profile class instances
         profiles = [profile_from_dict(profile) for profile in profile_list]
+        # Check the order dropdowns
         if ctx.triggered_id in ['order-by-dropdown', 'order-type-dropdown']:
+            # If order dropdowns are assigned
             if order_by and order_type is not None:
+                # Order by followers
                 if order_by == 'followers':
                     profiles = sorted(profiles, key=lambda x: x.followers, reverse=order_type)
+                # Order by stars
                 elif order_by == 'stars':
                     profiles = sorted(profiles, key=lambda x: x.stars, reverse=order_type)
+        # Build list components and add to list on page
         info_list = [html.Details(className='profile-collapse', children=[
                         html.Summary(profile.github_profile_name),
                             html.Div(className='profile-container', children=[
@@ -212,6 +224,7 @@ def update_list(profile_list, order_by, order_type):
     prevent_initial_call=True
 )
 def export_to_excel(n_clicks, profiles):
+    # Export to excel if there are profiles in list
     if len(profiles) > 0:
         profiles_df = pd.DataFrame(profiles)
         profiles_df = profiles_df.drop(['language_graph'], axis=1)
@@ -221,6 +234,7 @@ def export_to_excel(n_clicks, profiles):
 
 
 def profile_from_dict(data_dict):
+    # Build profile from dict
     profile = Profile(None)
     profile.github_profile_name = data_dict['github_profile_name']
     profile.github_url = data_dict['github_url']

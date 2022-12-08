@@ -1,7 +1,6 @@
 from googlesearch import search
 from bs4 import BeautifulSoup as bs
 import plotly.express as px
-import pandas as pd
 
 import requests
 import json
@@ -52,10 +51,13 @@ class Profile:
 
         page = requests.get(query)
         soup = bs(page.text, "html.parser")
+        # Return false if status code is 429, a.k.a. locked out of API
         if page.status_code == 429:
             print("Locked out of GitHub API try again in {0} seconds".format(page.headers['Retry-After']))
             return False
         print("Scraping profile {0}".format(self.github_profile_name))
+        # Find elements with useful information
+        # A lot of try catches in case BeautifulSoup does not find the elements
         try:
             self.full_name = soup.find("span", {"itemprop": "name"}).text.strip()
         except Exception:
@@ -87,7 +89,7 @@ class Profile:
         except:
             self.stars = 0
             pass
-
+        # Progress print
         print("\tFull Name: {0}\n\tLocation: {1}\n\tCompany: {2}\n\tEmail: {3}\n\tLink: {4}\n\tFollowers: {5}\n\tFollowing: {6}\n\tStars: {7}"
               .format(self.full_name,
                       self.location,
@@ -101,6 +103,7 @@ class Profile:
         return True
 
     def scrape_repos(self):
+        # Scrape the repos of a profile
         query = 'https://github.com/{0}?tab=repositories'.format(self.github_profile_name)
         page = requests.get(query)
 
@@ -119,7 +122,8 @@ class Profile:
         repo_dict = {repo_name: repo_language for (repo_name, repo_language) in zip(repo_names, repo_languages)}
         return repo_dict
 
-    def build_language_graph(self, repo_dict):
+    def build_language_graph(self):
+        # Build repo language graph from self.repos
         names = list(set(self.repos.values()))
         values = [list(self.repos.values()).count(name) for name in names]
         chart = px.pie(values=values, names=names)
@@ -131,12 +135,13 @@ class Profile:
         return chart
 
     def get_linkedin_url(self):
-        # TODO: Google search API is horribly slow, find alternative
+        # Use Google API to scrape LinkedIn profile
         print("Fetching LinkedIn profile for {0}....".format(self.github_profile_name))
         formatted_location = self.location.split(", ")[0]
         query = '"{0}" AND "{1}" site:linkedin.com/in OR site:linkedin.com/pub -intitle:profiles -inurl:"/dir"'\
             .format(self.full_name, formatted_location)
-        results = None
+        # Catch "too many requests"
+        # Problem: Google's definition of "too many" is 3-5 requests
         try:
             results = search(query, tld="co.in", num=1, stop=1, pause=5)
             for result in results:
@@ -148,6 +153,7 @@ class Profile:
         return False
 
     def to_dict(self):
+        # Convert profile to dict
         return {
             "github_profile_name": self.github_profile_name,
             "github_url": self.github_url,
@@ -166,6 +172,7 @@ class Profile:
 
 
 def convert_number_string(number_string):
+    # Convert number string e.g. 2.7k to 2700
     number = None
     if 'k' in number_string:
         number_string = number_string.replace('k', '')
