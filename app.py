@@ -6,14 +6,13 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-import plotly.express as px
-import pandas as pd
 import requests
 import json
+import csv
 from dash import callback_context as ctx
+import pandas as pd
 
 from src.Profile import Profile
-from googlesearch import search
 from dash import Dash, dcc, html, Input, Output, State
 
 app = dash.Dash(
@@ -42,7 +41,12 @@ colors = {"background": "#011833", "text": "#7FDBFF"}
 
 app.layout = html.Div(className='body', children=
     [
+        dcc.Download(id="download"),
         dcc.Store(id='profile-list'),
+        dcc.ConfirmDialog(
+            id='confirm-',
+            message='Danger danger! Are you sure you want to continue?',
+        ),
         html.H1(
             "Skills lookup",
         ),
@@ -93,11 +97,6 @@ app.layout = html.Div(className='body', children=
             ],
             className="row",
         ),
-        # html.Div(className='slider-container', children=[
-        #     html.Label("Forks"),
-        #     dcc.RangeSlider(min=0, max=10000, step=50, id='fork-range-slider',
-        #                     tooltip={"placement": "bottom", "always_visible": True},
-        #                     marks={i: str(i) for i in range(0, 10000, 1000)})]),
         html.Div(className='search-button-container', children=[html.Button('Search', id='search-button', n_clicks=0)]),
         html.Br(),
         html.Div(id='query-container', className='query-container'),
@@ -115,7 +114,8 @@ app.layout = html.Div(className='body', children=
                                                                                  order_type.items()
                                                                                  ],
                                                                         )]),
-        html.Div(className='list-container', children=[html.Ul(id='my-list')])
+        html.Div(className='list-container', children=[html.Ul(id='my-list')]),
+        html.Div(className='export-button-container', children=[html.Button('Export to Excel', id='export-button', n_clicks=0)])
     ],
 )
 
@@ -124,7 +124,6 @@ app.layout = html.Div(className='body', children=
     Output('query-container', 'children'),
     Input("location-dropdown", "value"),
     Input("language-dropdown", "value"),
-    # Input("fork-range-slider", "value"),
     prevent_initial_call=True
 )
 def update_query(selected_location, selected_language):
@@ -140,20 +139,18 @@ def query_builder(location_list, language_list):
     if language_list:
         language_query = '+'.join(['language:"{0}"'.format(language) for language in language_list])
         query += language_query
-    # if fork_range:
-    #     query += 'followers:>{0}'.format(fork_range[0])
     return query
+
 
 @app.callback(
     Output('profile-list', 'data'),
     Input("search-button", "n_clicks"),
     State("location-dropdown", "value"),
     State("language-dropdown", "value"),
-    # Input("fork-range-slider", "value"),
     prevent_initial_call=True
 )
 def get_profiles(n_clicks, selected_location, selected_language):
-    max_results = 10
+    max_results = 50
     query = query_builder(selected_location, selected_language)
     response = requests.get(query)
     response_dict = json.loads(response.text)
@@ -162,8 +159,19 @@ def get_profiles(n_clicks, selected_location, selected_language):
     else:
         results = response_dict['items']
     usernames = [result['login'] for result in results]
-    profiles = [Profile(username) for username in usernames]
+    profiles = []
+    access_to_github = True
+    access_to_google = True
+    for username in usernames:
+        cur_profile = Profile(username)
+        if access_to_github:
+            access_to_github = cur_profile.get_github_information_v2()
+        if access_to_google:
+            access_to_google = cur_profile.get_linkedin_url()
+        if cur_profile.full_name:
+            profiles.append(cur_profile)
     return [profile.to_dict() for profile in profiles]
+
 
 @app.callback(
     Output('my-list', 'children'),
@@ -196,11 +204,27 @@ def update_list(profile_list, order_by, order_type):
                                     html.Li(dcc.Markdown("Total GitHub repositories: {0}".format(len(profile.repos))))])])])]) for profile in profiles]
         return info_list
 
+
+@app.callback(
+    Output("download", "data"),
+    Input("export-button", "n_clicks"),
+    State('profile-list', 'data'),
+    prevent_initial_call=True
+)
+def export_to_excel(n_clicks, profiles):
+    if len(profiles) > 0:
+        profiles_df = pd.DataFrame(profiles)
+        profiles_df = profiles_df.drop(['language_graph'], axis=1)
+        profiles_df = profiles_df.reset_index(drop=True)
+        profiles_df_csv = profiles_df.to_csv(sep=';')
+        return dict(content=profiles_df_csv, filename="profile_export.csv")
+
+
 def profile_from_dict(data_dict):
     profile = Profile(None)
     profile.github_profile_name = data_dict['github_profile_name']
     profile.github_url = data_dict['github_url']
-    profile.full_name= data_dict['full_name']
+    profile.full_name = data_dict['full_name']
     profile.company = data_dict['company']
     profile.location = data_dict['location']
     profile.email = data_dict['email']

@@ -27,7 +27,7 @@ h1 {
 }
 
 .list-container {
-    height: 600px;
+    height: 500px;
     padding: 5px;
     margin: 10px;
     overflow: scroll;
@@ -58,6 +58,7 @@ h1 {
 .order-by-container {
     margin-left:50px;
     margin-right:50px;
+    margin-top: 20px;
     width: 200px;
     position: relative;
     float: right;
@@ -73,6 +74,13 @@ h1 {
 }
 
 .search-button-container {
+    margin-top: 10px;
+    margin-left: 40px;
+    margin-right: 20px;
+    float: left;
+}
+
+.export-button-container {
     margin-top: 10px;
     margin-left: 40px;
     margin-right: 20px;

@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup as bs
 import plotly.express as px
 import pandas as pd
 
-
 import requests
 import json
 
@@ -22,18 +21,16 @@ class Profile:
         self.followers = None
         self.following = None
         self.linkedin_url = None
+        self.stars = None
         self.repos = None
         self.language_graph = None
-        self.stars = None
+
+        # Fetch information if profile name is available
         if github_profile_name:
             self.github_profile_name = github_profile_name
             self.github_url = "https://github.com/{0}".format(self.github_profile_name)
             self.repos = self.scrape_repos()
             self.language_graph = self.build_language_graph(self.repos)
-
-            # Fetch available properties from GitHub
-            self.get_github_information_v2()
-            self.get_linkedin_url()
 
     def get_github_information(self):
         # Build query based on profile name
@@ -55,6 +52,9 @@ class Profile:
 
         page = requests.get(query)
         soup = bs(page.text, "html.parser")
+        if page.status_code == 429:
+            print("Locked out of GitHub API try again in {0} seconds".format(page.headers['Retry-After']))
+            return False
         print("Scraping profile {0}".format(self.github_profile_name))
         try:
             self.full_name = soup.find("span", {"itemprop": "name"}).text.strip()
@@ -88,7 +88,6 @@ class Profile:
             self.stars = 0
             pass
 
-
         print("\tFull Name: {0}\n\tLocation: {1}\n\tCompany: {2}\n\tEmail: {3}\n\tLink: {4}\n\tFollowers: {5}\n\tFollowing: {6}\n\tStars: {7}"
               .format(self.full_name,
                       self.location,
@@ -99,7 +98,7 @@ class Profile:
                       self.following,
                       self.stars))
 
-
+        return True
 
     def scrape_repos(self):
         query = 'https://github.com/{0}?tab=repositories'.format(self.github_profile_name)
@@ -133,14 +132,20 @@ class Profile:
 
     def get_linkedin_url(self):
         # TODO: Google search API is horribly slow, find alternative
+        print("Fetching LinkedIn profile for {0}....".format(self.github_profile_name))
         formatted_location = self.location.split(", ")[0]
         query = '"{0}" AND "{1}" site:linkedin.com/in OR site:linkedin.com/pub -intitle:profiles -inurl:"/dir"'\
             .format(self.full_name, formatted_location)
-        results = search(query, tld="co.in", num=1, stop=1, pause=2)
-        for result in results:
-            # TODO: Fix this if statement
-            self.linkedin_url = result if result else "Not found."
-            break
+        results = None
+        try:
+            results = search(query, tld="co.in", num=1, stop=1, pause=5)
+            for result in results:
+                # TODO: Fix this if statement
+                self.linkedin_url = result if result else "Not found."
+                return True
+        except:
+            print("Blocked by google API for too many requests. Skipping LinkedIn URL scraping")
+        return False
 
     def to_dict(self):
         return {
