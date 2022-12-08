@@ -1,3 +1,4 @@
 google
 beautifulsoup4
 dash
+pandas

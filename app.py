@@ -8,7 +8,6 @@ import dash_html_components as html
 import dash_bootstrap_components as dbc
 import requests
 import json
-import csv
 from dash import callback_context as ctx
 import pandas as pd
 
