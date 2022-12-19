@@ -1,4 +1,6 @@
-google
 beautifulsoup4
 dash
+dash_bootstrap_components==1.2.1
+google
 pandas
+requests==2.28.1
